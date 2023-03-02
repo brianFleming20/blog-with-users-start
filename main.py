@@ -19,7 +19,7 @@ ckeditor = CKEditor(app)
 Bootstrap(app)
 
 ##CONNECT TO DB
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blog.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///kitty.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 gravatar = Gravatar(app, size=100, rating='g', default='retro', force_default=False,
@@ -49,15 +49,15 @@ def admin_only(f):
 
 ##CONFIGURE TABLES
 
-class BlogPost(db.Model):
-    __tablename__ = "blog_posts"
+class KittyPost(db.Model):
+    __tablename__ = "kitty_posts"
     id = db.Column(db.Integer, primary_key=True)
     # Foreign Key to link to the user's post
     author_id = db.Column(db.Integer, db.ForeignKey("Users.id"))
     # link the author to the user's post
     author = relationship("User", back_populates="posts")
     title = db.Column(db.String(250), unique=True, nullable=False)
-    subtitle = db.Column(db.String(250), nullable=False)
+    description = db.Column(db.String(250), nullable=False)
     date = db.Column(db.String(250), nullable=False)
     body = db.Column(db.Text, nullable=False)
     img_url = db.Column(db.String(250), nullable=False)
@@ -72,7 +72,7 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(250), nullable=False)
     password = db.Column(db.String(250), nullable=False)
     email = db.Column(db.String(250), unique=True, nullable=False)
-    posts = relationship("BlogPost", back_populates="author")
+    posts = relationship("KittyPost", back_populates="author")
     comment = relationship("Comments", back_populates="comment_author")
 
 
@@ -81,9 +81,9 @@ class Comments(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.Text, nullable=False)
     author_id = db.Column(db.Integer, db.ForeignKey("Users.id"))
-    post_id = db.Column(db.Integer, db.ForeignKey("blog_posts.id"))
+    post_id = db.Column(db.Integer, db.ForeignKey("kitty_posts.id"))
     comment_author = relationship("User", back_populates="comment")
-    parent_post = relationship("BlogPost", back_populates="comment")
+    parent_post = relationship("KittyPost", back_populates="comment")
 
 
 # db.create_all()
@@ -105,10 +105,10 @@ class UserLogin(FlaskForm):
 
 class CreatePostForm(FlaskForm):
     title = StringField("Title", validators=[DataRequired()])
-    subtitle = StringField("Subtitle", validators=[DataRequired()])
+    description = StringField("Description", validators=[DataRequired()])
     img_url = StringField("Image URL", validators=[DataRequired()])
     author = StringField("Author", validators=[DataRequired()])
-    body = CKEditorField("Blog Content", validators=[DataRequired()])
+    body = CKEditorField("Item Content", validators=[DataRequired()])
     submit = SubmitField("Make new post")
 
 
@@ -119,7 +119,7 @@ class CommentForm(FlaskForm):
 
 @app.route('/')
 def get_all_posts():
-    posts = BlogPost.query.all()
+    posts = KittyPost.query.all()
     data = request.form.get('ckeditor')
     return render_template("index.html", all_posts=posts, current_user=current_user)
 
@@ -173,7 +173,7 @@ def logout():
 @app.route("/post/<int:post_id>", methods=["POST", "GET"])
 def show_post(post_id):
     comment_form = CommentForm()
-    requested_post = BlogPost.query.get(post_id)
+    requested_post = KittyPost.query.get(post_id)
     # comments = requested_post.comment
     if comment_form.validate_on_submit():
         if not current_user.is_authenticated:
@@ -205,9 +205,9 @@ def contact():
 def add_new_post():
     form = CreatePostForm()
     if form.validate_on_submit():
-        new_post = BlogPost(
+        new_post = KittyPost(
             title=form.title.data,
-            subtitle=form.subtitle.data,
+            description=form.description.data,
             body=form.body.data,
             img_url=form.img_url.data,
             author=current_user,
@@ -223,10 +223,10 @@ def add_new_post():
 @app.route("/edit-post/<int:post_id>", methods=["POST", "GET"])
 @admin_only
 def edit_post(post_id):
-    post = BlogPost.query.get(post_id)
+    post = KittyPost.query.get(post_id)
     edit_form = CreatePostForm(
         title=post.title,
-        subtitle=post.subtitle,
+        description=post.description,
         img_url=post.img_url,
         author=post.author.name,
         author_id=current_user.id,
@@ -235,7 +235,7 @@ def edit_post(post_id):
 
     if edit_form.validate_on_submit():
         post.title = edit_form.title.data
-        post.subtitle = edit_form.subtitle.data
+        post.description = edit_form.description.data
         post.img_url = edit_form.img_url.data
         post.author = current_user
         post.author_id = current_user.id
@@ -249,7 +249,7 @@ def edit_post(post_id):
 @app.route("/delete/<int:post_id>")
 @admin_only
 def delete_post(post_id):
-    post_to_delete = BlogPost.query.get(post_id)
+    post_to_delete = KittyPost.query.get(post_id)
     db.session.delete(post_to_delete)
     db.session.commit()
     return redirect(url_for('get_all_posts'))
